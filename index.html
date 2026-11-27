@@ -160,6 +160,24 @@ textarea{resize:vertical}
 .lb tr.me td{background:var(--soft);font-weight:700}
 .rk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;font-weight:800;background:var(--line)}
 tr:nth-child(1) .rk{background:var(--sun);color:var(--sunink)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi:first-child{background:var(--sun);border-color:var(--sunink);color:var(--sunink)}
+.kv{font-size:clamp(26px,5vw,34px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kl{font-size:13px;opacity:.8}
+.qstats{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:16px}
+.qs{padding-top:14px;border-top:1px solid var(--line)}
+.qs:first-child{border-top:0;padding-top:4px}
+.qs-h{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px}
+.qn{flex:none;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:14px}
+.qs-t{flex:1;font-weight:500;line-height:1.35;padding-top:3px}
+.qs-h .tag{flex:none;margin-top:2px}
+.stack{display:flex;height:16px;border-radius:99px;overflow:hidden;background:var(--line)}
+.stack i{display:block;height:100%}
+.s-ok,.c-ok b{background:var(--ok)}.s-part{background:#d89a1c}.s-ko{background:var(--ko)}
+.qs-n{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:14px}
+.qs-n b{font-variant-numeric:tabular-nums;background:none}
+.c-ok b{color:var(--ok)}.c-part b{color:#b7790f}.c-ko b{color:var(--ko)}.c-tot{color:var(--muted)}
 .bars{display:grid;gap:10px;margin-top:10px}
 .bar{display:grid;grid-template-columns:minmax(0,1fr) 54px;gap:4px 10px;font-size:14px;align-items:center}
 .bar .lab{grid-column:1/-1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -172,7 +190,7 @@ tr:nth-child(1) .rk{background:var(--sun);color:var(--sunink)}
 @media(max-width:600px){
  .hero{grid-template-columns:minmax(0,1fr)}
  .score{grid-template-columns:minmax(0,1fr);text-align:center}
- .lb{font-size:14px}.lb .hide-s{display:none}
+ .lb{font-size:14px}.lb .hide-s{display:none}.lb td,.lb th{padding-inline:4px}.lb .rk{width:26px;height:26px}
  main{padding-top:18px}
  .top-in{padding:8px 14px;gap:6px 10px}.brand{font-size:17px;gap:8px}.brand svg{width:28px;height:28px}
  nav button{min-height:36px;padding:4px 12px;font-size:14px}
@@ -182,6 +200,7 @@ tr:nth-child(1) .rk{background:var(--sun);color:var(--sunink)}
  .ord li{font-size:16px;min-height:56px}
  .match{gap:6px 8px}.mi{font-size:14.5px;padding:8px 7px;gap:6px;min-height:54px}.mi .b{width:24px;height:24px;font-size:12px}
  .actions .btn{flex:1}
+ .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.qs-h .tag{display:none}
  .passage{font-size:17px;padding:12px;line-height:2.2}.gap{font-size:16px;min-width:64px}.wchip{min-height:40px;font-size:15px;padding:5px 12px}
  .linkrow{flex-wrap:wrap}.linkrow input{min-width:100%}
 }
@@ -618,9 +637,9 @@ function lbTable(qid, admin) {
   if (!resultsLoaded) return `<p class="spin">Caricamento classifica…</p>`;
   const rows = playsFor(qid, admin);
   if (!rows.length) return `<div class="empty"><p>Ancora nessun risultato.</p></div>`;
-  return `<div class="card" style="padding:8px 10px"><table class="lb"><thead><tr><th>#</th><th>Nickname</th><th class="num">Punti</th><th class="num">%</th><th class="num">Tempo</th>${admin ? '<th class="num hide-s">Data</th><th></th>' : ''}</tr></thead><tbody>
-    ${rows.map((r, i) => `<tr class="${myIds.includes(r.id) ? 'me' : ''}"><td><span class="rk">${i + 1}</span></td><td>${esc(r.nick)}</td><td class="num">${fmtN(r.score)}/${r.max}</td><td class="num">${r.max ? Math.round(r.score / r.max * 100) : 0}%</td><td class="num">${fmtT(r.ms)}</td>
-    ${admin ? `<td class="num hide-s">${r.at ? new Date(r.at).toLocaleString('it-IT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : ''}</td><td class="num"><button class="btn small danger" data-act="delRes" data-id="${esc(r.id)}">${ui.pendingRes === r.id ? 'Conferma' : 'Elimina'}</button></td>` : ''}</tr>`).join('')}
+  return `<div class="card" style="padding:8px 10px;overflow-x:auto"><table class="lb"><thead><tr><th>#</th><th>Nickname</th><th class="num">Punti</th><th class="num">%</th><th class="num">Tempo</th>${admin ? '<th class="num hide-s">Data</th><th></th>' : ''}</tr></thead><tbody>
+    ${rows.map((r, i) => `<tr class="${!admin && myIds.includes(r.id) ? 'me' : ''}"><td><span class="rk">${i + 1}</span></td><td>${esc(r.nick)}</td><td class="num">${fmtN(r.score)}/${r.max}</td><td class="num">${r.max ? Math.round(r.score / r.max * 100) : 0}%</td><td class="num">${fmtT(r.ms)}</td>
+    ${admin ? `<td class="num hide-s">${r.at ? new Date(r.at).toLocaleString('it-IT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : ''}</td><td class="num"><button class="btn small danger" data-act="delRes" data-id="${esc(r.id)}" aria-label="Elimina la partita di ${esc(r.nick)}" title="Elimina">${ui.pendingRes === r.id ? 'Elimina?' : '✕'}</button></td>` : ''}</tr>`).join('')}
   </tbody></table></div>${admin ? '' : '<p class="hint">Per ogni nickname viene mostrato il risultato migliore.</p>'}`;
 }
 function vBoard() {
@@ -629,19 +648,41 @@ function vBoard() {
   if (!q) return quizzesLoaded ? `<div class="empty"><h2>Quiz non trovato</h2></div>` : loadingH();
   const best = playsFor(q.id, false), all = playsFor(q.id, true), n = best.length;
   const avg = n ? best.reduce((a, r) => a + (r.max ? r.score / r.max : 0), 0) / n * 100 : 0;
-  let stats = '';
-  if (isAdmin && all.length) {
-    stats = `<section class="card" style="margin-top:22px"><h3>Percentuale di risposte corrette per domanda</h3><p class="hint">Calcolata su ${all.length === 1 ? '1 partita' : 'tutte le ' + all.length + ' partite'}.</p><div class="bars">${q.questions.map((qq, i) => {
-      const v = all.reduce((a, r) => a + (+r.per[i] || 0), 0) / all.length * 100;
-      return `<div class="bar"><span class="lab">${i + 1}. ${esc(qq.text)} <span class="meta">(${TYPES[qq.type]})</span></span><span class="tr"><i style="width:${v.toFixed(1)}%"></i></span><span class="v">${Math.round(v)}%</span></div>`; }).join('')}</div></section>
-      <section class="card" style="margin-top:14px"><div class="row between"><h3>Esporta</h3><button class="btn small" data-act="csv">${ui.copied === 'csv' ? 'Copiato' : 'Copia risultati (CSV)'}</button></div>
-      <p class="hint">Tutte le partite, separate da punto e virgola, pronte da incollare in Excel o SPSS.</p>${ui.csv ? `<textarea class="copybox" readonly onclick="this.select()">${esc(ui.csv)}</textarea>` : ''}</section>`;
-  }
+  if (isAdmin) return vBoardAdmin(q, best, all);
   return `<p class="meta" style="margin:0 0 6px">Classifica</p><h1>${esc(q.title)}</h1>
     <p class="lead">${n} ${n === 1 ? 'giocatore' : 'giocatori'}${n ? ` · media ${Math.round(avg)}%` : ''} · si aggiorna in tempo reale</p>${errNote()}
-    <div class="row" style="margin:16px 0 20px"><button class="btn accent" data-act="go" data-h="q-${q.id}">Gioca</button>
-    ${isAdmin ? `<div class="linkrow" style="margin:0;flex:1"><input readonly value="${esc(linkFor(q.id))}" onclick="this.select()" aria-label="Link del quiz"><button class="btn small" data-act="copy" data-id="${q.id}">${ui.copied === q.id ? 'Copiato' : 'Copia link'}</button><button class="btn small" data-act="qr" data-id="${q.id}">QR</button></div>` : ''}</div>
-    ${isAdmin ? '<h3 style="margin-bottom:8px">Tutte le partite</h3>' : ''}${lbTable(q.id, isAdmin)}${stats}`;
+    <div class="row" style="margin:16px 0 20px"><button class="btn accent" data-act="go" data-h="q-${q.id}">Gioca</button></div>
+    ${lbTable(q.id, false)}`;
+}
+function vBoardAdmin(q, best, all) {
+  const N = all.length;
+  const avg = N ? all.reduce((a, r) => a + (r.max ? r.score / r.max : 0), 0) / N * 100 : 0;
+  const tmed = N ? all.reduce((a, r) => a + r.ms, 0) / N : 0;
+  const pl = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  const kpis = `<div class="kpis">
+    <div class="kpi"><span class="kv">${N}</span><span class="kl">${N === 1 ? 'risposta' : 'risposte'} (partite)</span></div>
+    <div class="kpi"><span class="kv">${best.length}</span><span class="kl">${best.length === 1 ? 'giocatore' : 'giocatori'} (nickname)</span></div>
+    <div class="kpi"><span class="kv">${N ? Math.round(avg) + '%' : '–'}</span><span class="kl">punteggio medio</span></div>
+    <div class="kpi"><span class="kv">${N ? fmtT(tmed) : '–'}</span><span class="kl">tempo medio</span></div></div>`;
+  const qs = q.questions.map((qq, i) => {
+    const rs = all.filter(r => r.per.length > i && !isNaN(r.per[i]));
+    const tot = rs.length, ok = rs.filter(r => r.per[i] >= 1).length, ko = rs.filter(r => r.per[i] <= 0).length, part = tot - ok - ko;
+    const pc = x => tot ? (x / tot * 100).toFixed(1) : 0;
+    return `<li class="qs"><div class="qs-h"><span class="qn">${i + 1}</span><span class="qs-t">${esc(qq.text)}</span><span class="tag">${TYPES[qq.type]}</span></div>
+      <div class="stack" role="img" aria-label="${ok} corrette, ${part} parziali, ${ko} sbagliate su ${tot}">${tot ? `<i class="s-ok" style="width:${pc(ok)}%"></i><i class="s-part" style="width:${pc(part)}%"></i><i class="s-ko" style="width:${pc(ko)}%"></i>` : ''}</div>
+      <div class="qs-n"><span class="c-ok"><b>${ok}</b> ${ok === 1 ? 'corretta' : 'corrette'}</span>${qq.type !== 'mc' ? `<span class="c-part"><b>${part}</b> ${part === 1 ? 'parziale' : 'parziali'}</span>` : ''}<span class="c-ko"><b>${ko}</b> ${ko === 1 ? 'sbagliata' : 'sbagliate'}</span><span class="c-tot">su ${tot}${tot ? ` · ${Math.round(ok / tot * 100)}% corrette` : ''}</span></div></li>`;
+  }).join('');
+  return `<p class="meta" style="margin:0 0 6px">Risultati</p><h1>${esc(q.title)}</h1>
+    <p class="lead">Si aggiorna in tempo reale mentre i partecipanti giocano.</p>${errNote()}
+    <div class="row" style="margin:16px 0 18px"><button class="btn accent" data-act="go" data-h="q-${q.id}">Gioca</button>
+      <div class="linkrow" style="margin:0;flex:1"><input readonly value="${esc(linkFor(q.id))}" onclick="this.select()" aria-label="Link del quiz"><button class="btn small" data-act="copy" data-id="${q.id}">${ui.copied === q.id ? 'Copiato' : 'Copia link'}</button><button class="btn small" data-act="qr" data-id="${q.id}">QR</button></div></div>
+    ${!resultsLoaded ? '<p class="spin">Caricamento risultati…</p>' : `${kpis}
+    <section class="card" style="margin-top:16px"><h2>Risposte per domanda</h2>
+      <p class="hint">Conteggio su tutte le partite${N ? '' : ': ancora nessuna'}. “Parziale” vale per ordine, collegamento e completamento, quando solo una parte della risposta è giusta.</p>
+      <ol class="qstats">${qs}</ol></section>
+    <h2 style="margin:26px 0 10px">Tutte le partite</h2>${lbTable(q.id, true)}
+    ${N ? `<section class="card" style="margin-top:14px"><div class="row between"><h3>Esporta</h3><button class="btn small" data-act="csv">${ui.copied === 'csv' ? 'Copiato' : 'Copia risultati (CSV)'}</button></div>
+      <p class="hint">Tutte le partite con il punteggio di ogni domanda, separate da punto e virgola, pronte da incollare in Excel o SPSS.</p>${ui.csv ? `<textarea class="copybox" readonly onclick="this.select()">${esc(ui.csv)}</textarea>` : ''}</section>` : ''}`}`;
 }
 function csvFor(q) {
   const rows = playsFor(q.id, true);
