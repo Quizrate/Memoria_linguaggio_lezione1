@@ -88,6 +88,20 @@ textarea{resize:vertical}
 .ovl .box{background:var(--card);border-radius:22px;padding:20px;width:min(560px,100%);max-height:100%;overflow:auto;text-align:center;border:3px solid var(--ink)}
 .ovl img{width:min(100%,62vh);aspect-ratio:1;image-rendering:pixelated;background:#fff;border-radius:12px;display:block;margin:12px auto}
 .ovl .url{font-size:14px;color:var(--muted);overflow-wrap:anywhere;margin:0 0 14px}
+.passage{font-size:18px;line-height:2.15;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:14px 16px;margin:16px 0;overflow-wrap:anywhere;hyphens:auto}
+.gap{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:76px;min-height:34px;padding:1px 10px;margin:0 2px;border:2px dashed var(--muted);border-radius:10px;background:var(--soft);color:var(--ink);font:inherit;font-size:17px;line-height:1.25;vertical-align:middle;cursor:pointer;scroll-margin:110px 0 260px;max-width:100%;text-align:center}
+.gap .gn{font-size:13px;font-weight:700;color:var(--muted)}
+.gap.filled{border-style:solid;border-color:var(--ink);background:var(--card);font-weight:600}
+.gap.active{border-style:solid;border-color:var(--coral);background:color-mix(in srgb,var(--coral) 12%,var(--card));box-shadow:0 0 0 3px color-mix(in srgb,var(--coral) 28%,transparent)}
+.gap.active .gn{color:var(--coral)}
+.gap.ok{border:2px solid var(--ok);background:var(--okbg);color:var(--ok);font-weight:600;cursor:default}
+.gap.ko{border:2px solid var(--ko);background:var(--kobg);cursor:default;flex-wrap:wrap}
+.gap .wrong{color:var(--ko);font-weight:500}.gap .right{color:var(--ok)}
+.bank{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;max-height:32vh;overflow:auto;padding:10px;background:var(--card);border:2px solid var(--line);border-radius:16px;box-shadow:0 -6px 18px rgba(0,0,0,.06)}
+.wchip{min-height:42px;padding:6px 14px;border-radius:999px;border:2px solid var(--sunink);background:var(--sun);color:var(--sunink);font-weight:600;font-size:16px;cursor:pointer;max-width:100%;overflow-wrap:anywhere;text-align:center;transition:transform .1s}
+.wchip:active{transform:scale(.96)}
+.wchip.used{opacity:.25;border-style:dashed;background:transparent;color:var(--ink);cursor:default}
+.gprev{margin:8px 0 4px;line-height:2}.gprev .chip{display:inline-block;line-height:1.5}
 .progress{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0 22px}
 .progress i{display:block;height:100%;background:var(--coral);border-radius:99px;transition:width .3s}
 .qtext{font-size:clamp(22px,3.6vw,30px);font-weight:700;line-height:1.2;margin:0 0 6px;text-wrap:balance}
@@ -168,6 +182,7 @@ tr:nth-child(1) .rk{background:var(--sun);color:var(--sunink)}
  .ord li{font-size:16px;min-height:56px}
  .match{gap:6px 8px}.mi{font-size:14.5px;padding:8px 7px;gap:6px;min-height:54px}.mi .b{width:24px;height:24px;font-size:12px}
  .actions .btn{flex:1}
+ .passage{font-size:17px;padding:12px;line-height:2.2}.gap{font-size:16px;min-width:64px}.wchip{min-height:40px;font-size:15px;padding:5px 12px}
  .linkrow{flex-wrap:wrap}.linkrow input{min-width:100%}
 }
 @media(prefers-reduced-motion:reduce){.progress i{transition:none}}
@@ -208,7 +223,11 @@ window.__quizStarted = true;
 const app = document.getElementById('app');
 const navEl = document.getElementById('nav');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const TYPES = {mc:'Scelta multipla', order:'Metti in ordine', match:'Collega'};
+const TYPES = {mc:'Scelta multipla', order:'Metti in ordine', match:'Collega', gaps:'Completa il testo'};
+const parseGaps = p => { const parts = String(p || '').split(/\[([^\[\]]*)\]/); return {segs: parts.filter((_, i) => i % 2 === 0), gaps: parts.filter((_, i) => i % 2 === 1).map(x => x.trim())}; };
+const splitExtra = e => (Array.isArray(e) ? e : String(e || '').split(',')).map(x => String(x).trim()).filter(Boolean);
+const normW = w => String(w).trim().toLocaleLowerCase('it-IT').replace(/\s+/g, ' ');
+const multiline = t => esc(t).replace(/\n/g, '<br>');
 const PAIRC = ['#e8471f','#12806b','#3d5afe','#b0398f','#c77d00','#00838f','#6d4c41','#5e35b1'];
 const LET = 'ABCDEFGH';
 const GRIP = '<svg width="14" height="22" viewBox="0 0 14 22" fill="currentColor"><circle cx="4" cy="4" r="2"/><circle cx="10" cy="4" r="2"/><circle cx="4" cy="11" r="2"/><circle cx="10" cy="11" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="10" cy="18" r="2"/></svg>';
@@ -239,6 +258,7 @@ function normQuiz(id, d) {
     const text = String(q.text || '');
     if (q.type === 'mc') { const options = (q.options || []).map(String); return {type:'mc', text, options, correct: Math.min(Math.max(0, +q.correct || 0), Math.max(0, options.length - 1))}; }
     if (q.type === 'order') return {type:'order', text, items: (q.items || []).map(String)};
+    if (q.type === 'gaps') return {type:'gaps', text, passage: String(q.passage || ''), extra: splitExtra(q.extra)};
     return {type:'match', text, pairs: (q.pairs || []).filter(p => p).map(p => ({l: String(p.l || ''), r: String(p.r || '')}))};
   });
   return {id, title: String(d.title || 'Quiz senza titolo'), desc: String(d.desc || ''), shuffle: !!d.shuffle, createdAt: +d.createdAt || 0, questions: qs};
@@ -368,7 +388,14 @@ function cardAdmin(q) {
 function blankQ(t) {
   if (t === 'mc') return {type:'mc', text:'', options:['', '', ''], correct:0};
   if (t === 'order') return {type:'order', text:'', items:['', '', '']};
+  if (t === 'gaps') return {type:'gaps', text:'Completa il testo con le parole giuste', passage:'', extra:''};
   return {type:'match', text:'', pairs:[{l:'', r:''}, {l:'', r:''}, {l:'', r:''}]};
+}
+function gapPreview(p, msg) {
+  const g = parseGaps(p).gaps;
+  return (msg ? `<p class="err" style="min-height:0;margin:0 0 6px">${esc(msg)}</p>` : '') + (g.length
+    ? `<span class="hint">Parole da inserire (${g.length}):</span> ${g.map(w => `<span class="chip">${esc(w || '(vuota)')}</span>`).join(' ')}`
+    : `<span class="hint">Ancora nessuna parola nascosta: mettila tra parentesi quadre oppure selezionala e premi il pulsante.</span>`);
 }
 function vEdit() {
   const d = draft;
@@ -380,7 +407,8 @@ function vEdit() {
   <div class="addbar"><b>Aggiungi domanda:</b>
     <button class="btn small" data-act="addQ" data-t="mc">+ Scelta multipla</button>
     <button class="btn small" data-act="addQ" data-t="order">+ Metti in ordine</button>
-    <button class="btn small" data-act="addQ" data-t="match">+ Collega</button></div>
+    <button class="btn small" data-act="addQ" data-t="match">+ Collega</button>
+    <button class="btn small" data-act="addQ" data-t="gaps">+ Completa il testo</button></div>
   <p class="err" id="err">${esc(d.err || '')}</p>
   <div class="row"><button class="btn primary" data-act="saveQuiz" ${d.saving ? 'disabled' : ''}>${d.saving ? 'Salvataggio…' : 'Salva quiz'}</button><button class="btn ghost" data-act="home">Annulla</button></div>`;
 }
@@ -398,6 +426,12 @@ function qEdit(q, i) {
       <input type="text" data-path="questions.${i}.items.${k}" value="${esc(o)}" placeholder="Elemento ${k + 1}" maxlength="200">
       ${q.items.length > 2 ? `<button class="icon" data-act="rmSub" data-i="${i}" data-k="${k}" aria-label="Rimuovi">✕</button>` : ''}</div>`).join('')
       + (q.items.length < 8 ? `<button class="btn small ghost" data-act="addSub" data-i="${i}">+ Elemento</button>` : '');
+  } else if (q.type === 'gaps') {
+    body = `<p class="hint">Scrivi il brano e metti tra <b>[parentesi quadre]</b> le parole da nascondere. Esempio: <i>La memoria di [lavoro] mantiene le informazioni per un [breve] periodo.</i></p>
+      <label class="fld"><span>Brano</span><textarea id="pass-${i}" data-path="questions.${i}.passage" rows="6" maxlength="2000" placeholder="Scrivi qui il testo…">${esc(q.passage)}</textarea></label>
+      <button class="btn small ghost" data-act="wrapSel" data-i="${i}">[ ] Nascondi la parola selezionata</button>
+      <div class="gprev" id="gp-${i}">${gapPreview(q.passage)}</div>
+      <label class="fld"><span>Parole in più per confondere (facoltative, separate da virgola)</span><input type="text" data-path="questions.${i}.extra" value="${esc(q.extra)}" maxlength="400" placeholder="Es. lunga, visiva, sempre"></label>`;
   } else {
     body = `<p class="hint">Scrivi le coppie corrette: la colonna di destra verrà mescolata.</p>` + q.pairs.map((p, k) => `<div class="line">
       <input type="text" data-path="questions.${i}.pairs.${k}.l" value="${esc(p.l)}" placeholder="Sinistra ${k + 1}" maxlength="150">
@@ -410,7 +444,7 @@ function qEdit(q, i) {
     <div class="row"><button class="icon" data-act="mvQ" data-i="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Sposta su">↑</button>
     <button class="icon" data-act="mvQ" data-i="${i}" data-d="1" ${i === n - 1 ? 'disabled' : ''} aria-label="Sposta giù">↓</button>
     <button class="icon" data-act="rmQ" data-i="${i}" aria-label="Elimina domanda">✕</button></div></div>
-    <label class="fld"><span>Testo della domanda</span><textarea data-path="questions.${i}.text" rows="2" maxlength="500" placeholder="${q.type === 'mc' ? 'Es. Chi ha ideato la Strange Situation?' : q.type === 'order' ? 'Es. Metti in ordine gli stadi…' : 'Es. Collega ogni autore al suo concetto'}">${esc(q.text)}</textarea></label>
+    <label class="fld"><span>Testo della domanda</span><textarea data-path="questions.${i}.text" rows="2" maxlength="500" placeholder="${q.type === 'mc' ? 'Es. Chi ha ideato la Strange Situation?' : q.type === 'order' ? 'Es. Metti in ordine gli stadi…' : q.type === 'gaps' ? 'Es. Completa il brano sulla memoria di lavoro' : 'Es. Collega ogni autore al suo concetto'}">${esc(q.text)}</textarea></label>
     ${body}</section>`;
 }
 function setPath(path, val) {
@@ -424,7 +458,7 @@ function validate(d) {
   if (!d.questions.length) return 'Aggiungi almeno una domanda.';
   const out = [];
   for (let i = 0; i < d.questions.length; i++) {
-    const q = d.questions[i], N = `Domanda ${i + 1}: `, text = q.text.trim();
+    const q = d.questions[i], N = `Domanda ${i + 1}: `, text = q.text.trim() || (q.type === 'gaps' ? 'Completa il testo con le parole giuste' : '');
     if (!text) return N + 'manca il testo.';
     if (q.type === 'mc') {
       const opts = q.options.map((o, k) => ({o: o.trim(), k})).filter(x => x.o);
@@ -434,6 +468,13 @@ function validate(d) {
     } else if (q.type === 'order') {
       const items = q.items.map(s => s.trim()).filter(Boolean); if (items.length < 2) return N + 'servono almeno due elementi.';
       out.push({type:'order', text, items});
+    } else if (q.type === 'gaps') {
+      const passage = String(q.passage || '').trim(), g = parseGaps(passage).gaps, extra = splitExtra(q.extra);
+      if (!g.length) return N + 'nel brano metti almeno una parola tra [parentesi quadre].';
+      if (g.some(w => !w)) return N + 'c\'è una coppia di parentesi quadre vuota.';
+      if (g.length > 20) return N + 'al massimo 20 parole da completare.';
+      if (g.length + extra.length > 28) return N + 'troppe parole in totale: riduci le parole in più.';
+      out.push({type:'gaps', text, passage, extra});
     } else {
       const pairs = q.pairs.map(p => ({l: p.l.trim(), r: p.r.trim()})).filter(p => p.l || p.r);
       if (pairs.some(p => !p.l || !p.r)) return N + 'completa entrambi i lati di ogni coppia.';
@@ -453,12 +494,13 @@ async function saveQuiz() {
     draft = null; view = {name:'home'}; syncSubs(); render(); window.scrollTo(0, 0);
   } catch (e) { draft.saving = false; draft.err = fbMsg(e); render(); }
 }
-const SAMPLE = {title:'Esempio · Psicologia dello sviluppo', desc:'Quiz dimostrativo con i tre tipi di domanda: scelta multipla, ordinamento e collegamento.', shuffle:false, questions:[
+const SAMPLE = {title:'Esempio · Psicologia dello sviluppo', desc:'Quiz dimostrativo con i quattro tipi di domanda: scelta multipla, ordinamento, collegamento e completamento.', shuffle:false, questions:[
   {type:'mc', text:'Chi ha ideato la procedura della Strange Situation?', options:['Mary Ainsworth', 'John Bowlby', 'Jean Piaget', 'Lev Vygotskij'], correct:0},
   {type:'order', text:'Metti in ordine gli stadi dello sviluppo cognitivo secondo Piaget', items:['Senso-motorio', 'Preoperatorio', 'Operatorio concreto', 'Operatorio formale']},
   {type:'match', text:'Collega ogni autore al concetto che ha proposto', pairs:[{l:'Vygotskij', r:'Zona di sviluppo prossimale'}, {l:'Bowlby', r:'Teoria dell\'attaccamento'}, {l:'Baddeley e Hitch', r:'Modello multicomponenziale della memoria di lavoro'}, {l:'Thomas e Chess', r:'Temperamento facile, difficile, lento a scaldarsi'}]},
   {type:'mc', text:'Nel modello di Baddeley, quale componente coordina le risorse attentive della memoria di lavoro?', options:['Esecutivo centrale', 'Taccuino visuo-spaziale', 'Loop fonologico', 'Buffer episodico'], correct:0},
-  {type:'order', text:'Metti in ordine i primi quattro stadi psicosociali di Erikson', items:['Fiducia vs sfiducia', 'Autonomia vs vergogna e dubbio', 'Iniziativa vs senso di colpa', 'Industriosità vs inferiorità']}
+  {type:'order', text:'Metti in ordine i primi quattro stadi psicosociali di Erikson', items:['Fiducia vs sfiducia', 'Autonomia vs vergogna e dubbio', 'Iniziativa vs senso di colpa', 'Industriosità vs inferiorità']},
+  {type:'gaps', text:'Completa il brano sul modello di Baddeley e Hitch', passage:'Il modello di Baddeley e Hitch descrive la memoria di [lavoro] come un sistema a più componenti. Il [loop fonologico] mantiene le informazioni verbali, il [taccuino visuo-spaziale] conserva quelle visive e spaziali, mentre l\'[esecutivo centrale] coordina le risorse attentive.', extra:['memoria a lungo termine', 'registro sensoriale']}
 ]};
 
 /* ---------- gioco ---------- */
@@ -492,7 +534,7 @@ function vPlay() {
       <span class="pos">${pos + 1}</span><span class="txt">${esc(qq.items[k])}</span>
       ${fb ? '' : `<span class="arrows"><button class="arr" data-act="mv" data-p="${pos}" data-d="-1" ${pos === 0 ? 'disabled' : ''} aria-label="Sposta su">${UP}</button><button class="arr" data-act="mv" data-p="${pos}" data-d="1" ${pos === last ? 'disabled' : ''} aria-label="Sposta giù">${DOWN}</button></span>`}</li>`).join('')}</ol>`;
     if (fb && s.arr.some((k, p) => k !== p)) body += `<p class="hint"><b>Ordine corretto:</b></p><ol class="sol">${qq.items.map(t => `<li>${esc(t)}</li>`).join('')}</ol>`;
-  } else {
+  } else if (qq.type === 'match') {
     const linkedR = {}; Object.entries(s.links).forEach(([l, r]) => linkedR[r] = +l);
     ready = Object.keys(s.links).length === qq.pairs.length;
     const badge = l => l === undefined ? `<span class="b"></span>` : `<span class="b" style="background:${PAIRC[l % 8]};border:0">${l + 1}</span>`;
@@ -502,15 +544,27 @@ function vPlay() {
       return `<button class="mi ${c}" data-act="pr" data-k="${r}" ${fb ? 'disabled' : ''}>${badge(l)}<span class="t">${esc(qq.pairs[r].r)}</span></button>`; };
     body = `<div class="match"><span class="colh">Tocca un elemento…</span><span class="colh">…poi il suo compagno</span>${qq.pairs.map((_, i) => left(i) + right(s.right[i])).join('')}</div>`;
     if (fb && qq.pairs.some((p, l) => s.links[l] !== l)) body += `<p class="hint"><b>Coppie corrette:</b></p><ul class="sol">${qq.pairs.map(p => `<li>${esc(p.l)} ↔ ${esc(p.r)}</li>`).join('')}</ul>`;
+  } else {
+    const {segs, gaps} = parseGaps(qq.passage);
+    ready = s.fill.every(x => x !== null);
+    const gapH = i => {
+      const b = s.fill[i], w = b === null ? '' : s.bank[b].w;
+      if (fb) { const ok = b !== null && normW(w) === normW(gaps[i]);
+        return `<span class="gap ${ok ? 'ok' : 'ko'}">${ok ? esc(w) : `${w ? `<s class="wrong">${esc(w)}</s>` : ''}<b class="right">${esc(gaps[i])}</b>`}</span>`; }
+      return `<button class="gap ${b !== null ? 'filled' : ''} ${s.active === i ? 'active' : ''}" data-act="gap" data-k="${i}" id="gap-${i}" aria-label="Spazio ${i + 1}">${b !== null ? esc(w) : `<span class="gn">${i + 1}</span>`}</button>`;
+    };
+    body = `<div class="passage">${segs.map((t, i) => multiline(t) + (i < gaps.length ? gapH(i) : '')).join('')}</div>`;
   }
   const pts = fb ? g.per[g.order[g.i]] : 0;
   const fbH = fb ? `<div class="fb ${pts === 1 ? 'ok' : pts === 0 ? 'ko' : 'part'}">${pts === 1 ? '✓ Esatto!' : pts === 0 ? '✗ Risposta sbagliata.' : `Parzialmente corretto: ${fmtN(pts)} punti su 1.`}</div>` : '';
-  const hint = qq.type === 'mc' ? 'Scegli una risposta' : qq.type === 'order' ? 'Trascina gli elementi dalla maniglia oppure usa le frecce' : 'Tocca un elemento a sinistra e poi quello che gli corrisponde a destra';
+  const hint = qq.type === 'mc' ? 'Scegli una risposta' : qq.type === 'order' ? 'Trascina gli elementi dalla maniglia oppure usa le frecce' : qq.type === 'gaps' ? 'Tocca una parola qui sotto per inserirla nello spazio evidenziato. Tocca uno spazio per sceglierlo o per svuotarlo.' : 'Tocca un elemento a sinistra e poi quello che gli corrisponde a destra';
+  const used = qq.type === 'gaps' ? new Set(s.fill.filter(x => x !== null)) : null;
+  const bankH = qq.type === 'gaps' && !fb ? `<div class="bank" role="group" aria-label="Parole da inserire">${s.bank.map((x, b) => `<button class="wchip ${used.has(b) ? 'used' : ''}" data-act="word" data-k="${b}" ${used.has(b) ? 'disabled' : ''}>${esc(x.w)}</button>`).join('')}</div>` : '';
   return `<div class="qhead"><span class="tag">${TYPES[qq.type]}</span><b>Domanda ${g.i + 1} di ${n}</b><span class="who">${esc(g.nick)}</span></div>
     <div class="progress"><i style="width:${((g.i + (fb ? 1 : 0)) / n) * 100}%"></i></div>
     <p class="qtext">${esc(qq.text)}</p><p class="hint">${fb ? '' : hint}</p>
     ${body}
-    <div class="actions">${fb ? fbH + `<button class="btn accent" data-act="next">${g.i + 1 < n ? 'Prossima domanda →' : 'Vedi il risultato'}</button>` : `<button class="btn primary" data-act="confirm" ${ready ? '' : 'disabled'}>Conferma</button>`}</div>`;
+    <div class="actions">${fb ? fbH + `<button class="btn accent" data-act="next">${g.i + 1 < n ? 'Prossima domanda →' : 'Vedi il risultato'}</button>` : bankH + `<button class="btn primary" data-act="confirm" ${ready ? '' : 'disabled'}>Conferma</button>`}</div>`;
 }
 function startGame() {
   const nick = (game.nick || '').trim().slice(0, 20);
@@ -524,12 +578,14 @@ function prepQ() {
   const q = curQ();
   if (q.type === 'mc') game.s = {opt: shuffle(q.options.map((_, i) => i)), sel: null};
   else if (q.type === 'order') game.s = {arr: derange(q.items.length)};
+  else if (q.type === 'gaps') { const g = parseGaps(q.passage).gaps; game.s = {bank: shuffle([...g, ...q.extra].map(w => ({w}))), fill: g.map(() => null), active: 0}; }
   else game.s = {right: derange(q.pairs.length), links: {}, pick: null};
 }
 function grade() {
   const q = curQ(), s = game.s; let v = 0;
   if (q.type === 'mc') v = s.sel === q.correct ? 1 : 0;
   else if (q.type === 'order') v = s.arr.filter((k, p) => k === p).length / s.arr.length;
+  else if (q.type === 'gaps') { const g = parseGaps(q.passage).gaps; v = g.filter((w, i) => s.fill[i] !== null && normW(s.bank[s.fill[i]].w) === normW(w)).length / g.length; }
   else v = q.pairs.filter((_, l) => s.links[l] === l).length / q.pairs.length;
   game.per[game.order[game.i]] = Math.round(v * 100) / 100;
 }
@@ -600,7 +656,7 @@ async function copyText(t, key) {
 }
 
 /* ---------- azioni ---------- */
-const openDraft = d => { draft = d; view = {name:'edit'}; game = null; render(); window.scrollTo(0, 0); };
+const openDraft = d => { d.questions.forEach(q => { if (q.type === 'gaps' && Array.isArray(q.extra)) q.extra = q.extra.join(', '); }); draft = d; view = {name:'edit'}; game = null; render(); window.scrollTo(0, 0); };
 const acts = {
   home() { draft = null; go(''); },
   go(d) { go(d.h); },
@@ -643,6 +699,24 @@ const acts = {
     if (s.pick === null) { if (owner !== undefined) { delete s.links[owner]; s.pick = +owner; } render(); return; }
     if (owner !== undefined) delete s.links[owner];
     s.links[s.pick] = r; s.pick = null; render(); },
+  gap(d) { if (game.phase !== 'q') return; const s = game.s, i = +d.k; if (s.fill[i] !== null) s.fill[i] = null; s.active = i; render(); },
+  word(d) {
+    if (game.phase !== 'q') return; const s = game.s, b = +d.k; if (s.fill.includes(b)) return;
+    const n = s.fill.length; let t = s.active !== null && s.fill[s.active] === null ? s.active : s.fill.indexOf(null); if (t < 0) return;
+    s.fill[t] = b; s.active = null;
+    for (let k = 1; k <= n; k++) { const j = (t + k) % n; if (s.fill[j] === null) { s.active = j; break; } }
+    render(); if (s.active !== null) document.getElementById('gap-' + s.active)?.scrollIntoView({block:'nearest', behavior:'smooth'});
+  },
+  wrapSel(d) {
+    const i = +d.i, ta = document.getElementById('pass-' + i); if (!ta) return;
+    let a = ta.selectionStart, b = ta.selectionEnd; const v = ta.value;
+    while (a < b && /\s/.test(v[a])) a++; while (b > a && /\s/.test(v[b - 1])) b--;
+    const el = document.getElementById('gp-' + i);
+    if (a === b) { if (el) el.innerHTML = gapPreview(v, 'Prima seleziona una parola nel brano.'); return; }
+    if (/[\[\]]/.test(v.slice(a, b))) { if (el) el.innerHTML = gapPreview(v, 'La selezione contiene già una parentesi quadra.'); return; }
+    draft.questions[i].passage = v.slice(0, a) + '[' + v.slice(a, b) + ']' + v.slice(b); render();
+    const nt = document.getElementById('pass-' + i); if (nt) { nt.focus(); nt.setSelectionRange(b + 2, b + 2); }
+  },
   confirm() { if (game.phase !== 'q') return; grade(); game.phase = 'fb'; render(); },
   next() { if (game.i + 1 < game.quiz.questions.length) { game.i++; game.phase = 'q'; prepQ(); render(); window.scrollTo(0, 0); } else finish(); },
   again() { game = {phase:'nick', nick:savedNick, quiz:null}; render(); window.scrollTo(0, 0); },
@@ -665,7 +739,8 @@ document.addEventListener('submit', async e => {
 });
 const onField = e => {
   const t = e.target;
-  if (t.dataset && t.dataset.path && draft) { if (t.type === 'radio' && !t.checked) return; setPath(t.dataset.path, t.type === 'checkbox' ? t.checked : t.value); }
+  if (t.dataset && t.dataset.path && draft) { if (t.type === 'radio' && !t.checked) return; setPath(t.dataset.path, t.type === 'checkbox' ? t.checked : t.value);
+    const m = t.dataset.path.match(/^questions\.(\d+)\.passage$/); if (m) { const el = document.getElementById('gp-' + m[1]); if (el) el.innerHTML = gapPreview(t.value); } }
   if (t.id === 'nick' && game) game.nick = t.value;
 };
 document.addEventListener('input', onField);
